@@ -1,0 +1,84 @@
+name: backend-ci
+on:
+  workflow_dispatch:
+
+  push:
+    branches: ['main']
+    paths: ['starter/backend/**']
+
+  pull_request:
+    branches: ['main']
+    paths: ['starter/backend/**']
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@v3
+
+    - name: Set up Python 
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pipenv --user
+        pipenv install
+      working-directory: starter/backend
+    
+    - name: Lint
+      run: |
+        cd starter/backend
+        pipenv install flake8
+        pipenv run lint
+      working-directory: starter/backend
+
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@v3
+
+    - name: Set up Python 
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pipenv --user
+        pipenv install
+      working-directory: starter/backend
+    
+    - name: Test
+      run: pipenv run test
+      working-directory: starter/backend
+  
+  build:
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+    if: steps.lint.outcome == 'success' && steps.test.outcome == 'success'
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@v3
+
+    - name: Set up Python 
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pipenv --user
+        pipenv install
+      working-directory: starter/backend
+    
+    - name: Build
+      run: docker build --tag app-backend:latest .
+      working-directory: starter/backend
