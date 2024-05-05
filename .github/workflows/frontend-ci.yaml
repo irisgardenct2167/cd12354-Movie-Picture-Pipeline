@@ -13,6 +13,8 @@ on:
 jobs:
   lint:
     runs-on: ubuntu-latest
+    outputs:
+      status: ${{ steps.lint.outputs.status }}
     steps:
     - name: Check out repository
       uses: actions/checkout@v3
@@ -33,17 +35,22 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-npm-
 
-    - name: Install 
+    - name: Install
       run: npm install
       working-directory: starter/frontend
     
     - name: Lint
-      run: npm run lint
+      id: lint
+      run: |
+        npm run lint
+        echo "status=success" >> "$GITHUB_OUTPUT"
       working-directory: starter/frontend
 
 
   test:
     runs-on: ubuntu-latest
+    outputs:
+      status: ${{ steps.test.outputs.status }}
     steps:
     - name: Check out repository
       uses: actions/checkout@v3
@@ -69,13 +76,16 @@ jobs:
       working-directory: starter/frontend
     
     - name: Test
-      run: npm run test
+      id: test
+      run: |
+        npm run test
+        echo "status=success" >> "$GITHUB_OUTPUT"
       working-directory: starter/frontend
   
   build:
     runs-on: ubuntu-latest
     needs: [lint, test]
-    if: steps.lint.outcome == 'success' && steps.test.outcome == 'success'
+    if: jobs.lint.status == 'success' && jobs.test.status == 'success'
     steps:
     - name: Check out repository
       uses: actions/checkout@v3
