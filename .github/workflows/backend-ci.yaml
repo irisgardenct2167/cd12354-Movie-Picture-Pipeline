@@ -31,7 +31,6 @@ jobs:
     
     - name: Lint
       run: |
-        cd starter/backend
         pipenv install flake8
         pipenv run lint
       working-directory: starter/backend
