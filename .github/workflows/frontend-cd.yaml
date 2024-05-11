@@ -1,4 +1,4 @@
-name: frontend-ci
+name: frontend-cd
 on:
   workflow_dispatch:
 
@@ -7,7 +7,7 @@ on:
     paths: ['starter/frontend/**']
 
 jobs:
-  lint:
+  build-deploy:
     runs-on: ubuntu-latest
     steps:
     - name: Check out repository
@@ -37,68 +37,10 @@ jobs:
       run: |
         npm run lint
       working-directory: starter/frontend
-
-
-  test:
-    runs-on: ubuntu-latest
-    steps:
-    - name: Check out repository
-      uses: actions/checkout@v3
-
-    - name: Set up Node.js 
-      uses: actions/setup-node@v3
-      with:
-        node-version: latest
-
-    - name: Cache node modules
-      uses: actions/cache@v2
-      id: cache-node-modules
-      env:
-        cache-name: cache-node-modules
-      with:
-        path: /starter/frontend/
-        key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
-        restore-keys: |
-          ${{ runner.os }}-npm-
-
-    - name: Install 
-      run: npm install
-      working-directory: starter/frontend
     
     - name: Test
       run: |
         npm run test
-      working-directory: starter/frontend
-  
-  build-deploy:
-    runs-on: ubuntu-latest
-    needs: [lint, test]
-    steps:
-    - name: Check out repository
-      uses: actions/checkout@v3
-
-    - name: Set up Node.js 
-      uses: actions/setup-node@v3
-      with:
-        node-version: latest
-
-    - name: Cache node modules
-      uses: actions/cache@v2
-      id: cache-node-modules
-      env:
-        cache-name: cache-node-modules
-      with:
-        path: /starter/frontend/
-        key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
-        restore-keys: |
-          ${{ runner.os }}-npm-
-
-    - name: Install 
-      run: npm install
-      working-directory: starter/frontend
-    
-    - name: Test
-      run: npm run build
       working-directory: starter/frontend
 
     - name: Retrieve AWS credentials
@@ -106,7 +48,6 @@ jobs:
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-session-token: ${{secrets.AWS_SESSION_TOKEN}}
         aws-region: us-east-1
     
     - name: Login AWS ECR
@@ -117,23 +58,16 @@ jobs:
 
     - name: Build and push Docker image
       env:
-        REGISTRY: ${{ steps.ecr.outputs.registry }}
-        REPOSITORY: frontend
-        IMAGE_TAG: ${{ github.sha }}
         REACT_APP_MOVIE_API_URL: https://E0E891CF267A72AA138453D0A00EF19E.gr7.us-east-1.eks.amazonaws.com
       run: |
-        docker build --build-arg=REACT_APP_MOVIE_API_URL=$REACT_APP_MOVIE_API_URL -t $REGISTRY/$REPOSITORY:$IMAGE_TAG .
-        docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
+        docker build --build-arg=REACT_APP_MOVIE_API_URL=$REACT_APP_MOVIE_API_URL -t 486819485698.dkr.ecr.us-east-1.amazonaws.com/frontend:latest .
+        docker push 486819485698.dkr.ecr.us-east-1.amazonaws.com/frontend:latest
       working-directory: starter/frontend
     
     - name: Deploy to EKS
-      env:
-        REGISTRY: ${{ steps.ecr.outputs.registry }}
-        REPOSITORY: frontend
-        IMAGE_TAG: ${{ github.sha }}
       run: |
         cd k8s
-        aws eks --region us-east-1 update-kubeconfig --name cluster
-        kustomize edit set image frontend=$REGISTRY/$REPOSITORY:$IMAGE_TAG
+        aws eks --region us-east-1 update-kubeconfig --name frontend
+        kustomize edit set image frontend=486819485698.dkr.ecr.us-east-1.amazonaws.com/frontend:latest
         kustomize build | kubectl apply -f -
       working-directory: starter/frontend
